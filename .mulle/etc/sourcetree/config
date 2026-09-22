@@ -1,0 +1,2 @@
+mulle-c11;${MULLE__C11_NODETYPE:-tar};no-all-load,no-cmake-loader,no-cmake-searchpath,no-import,no-link;63FB6869-2BA6-40F9-8637-3BF29EDA236F;${MULLE__C11_URL:-https://github.com/mulle-c/mulle-c11/archive/${MULLE_TAG}.tar.gz};${MULLE__C11_BRANCH};${MULLE__C11_TAG:-latest};;
+ws2_32;none;no-all-load,no-build,no-cmake-inherit,no-delete,no-dependency,no-fs,no-header,no-import,no-share,no-update,only-platform-windows;76FB8840-E6C6-4501-A7AE-50218DC984D5;;;;;

@@ -1,0 +1,22 @@
+{
+   "name" : "mulle-socket",
+   "version" : "1.0.0",
+   "description" : "TCP that reads the same on both sides of the fence",
+   "keywords" : [],
+   "license" : "UNLICENSED",
+   "repo" : "mulle-core/mulle-socket",
+   "src" : [
+      "src/generic/include-private.h",
+      "src/generic/include.h",
+      "src/mulle-socket-posix.c",
+      "src/mulle-socket-windows.c",
+      "src/mulle-socket.c",
+      "src/mulle-socket.h",
+      "src/reflect/_mulle-socket-include-private.h",
+      "src/reflect/_mulle-socket-include.h",
+      "src/reflect/_mulle-socket-provide.h"
+   ],
+   "dependencies" : {
+      "mulle-c/mulle-c11": "*"
+   }
+}

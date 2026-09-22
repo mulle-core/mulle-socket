@@ -1,0 +1,1 @@
+mulle-socket;${MULLE__SOCKET_NODETYPE:-tar};;36867629-C5EB-4E79-9E59-B582ED72286B;${MULLE__SOCKET_URL:-https://github.com/nat/mulle-socket/archive/${MULLE_TAG}.tar.gz};${MULLE__SOCKET_BRANCH};${MULLE__SOCKET_TAG:-latest};;
