@@ -3,7 +3,7 @@
    "version" : "1.0.0",
    "description" : "TCP that reads the same on both sides of the fence",
    "keywords" : [],
-   "license" : "UNLICENSED",
+   "license" : "BSD-3-Clause",
    "repo" : "mulle-core/mulle-socket",
    "src" : [
       "src/generic/include-private.h",

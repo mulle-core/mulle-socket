@@ -1,0 +1,2 @@
+mulle-socket;${MULLE__SOCKET_NODETYPE:-tar};no-all-load,no-import,no-singlephase;36867629-C5EB-4E79-9E59-B582ED72286B;${MULLE__SOCKET_URL:-https://github.com/mulle-core/mulle-socket/archive/${MULLE_TAG}.tar.gz};${MULLE__SOCKET_BRANCH};${MULLE__SOCKET_TAG:-latest};;
+mulle-testallocator;${MULLE__TESTALLOCATOR_NODETYPE:-tar};no-import,no-singlephase;6C417BA9-BA3F-4481-A264-9EFCD61677EF;${MULLE__TESTALLOCATOR_URL:-https://github.com/mulle-core/mulle-testallocator/archive/${MULLE_TAG}.tar.gz};${MULLE__TESTALLOCATOR_BRANCH};${MULLE__TESTALLOCATOR_TAG:-latest};;
