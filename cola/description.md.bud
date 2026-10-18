@@ -1,0 +1,12 @@
+Sockets without the platform leaking into your program: no `WSAStartup`, no
+`SOCKET`-versus-descriptor fork in the caller, no `SIGPIPE` landing on the
+process, no `WSAEINTR`-versus-`EINTR` in an error test, and no `setsockopt`
+whose meaning changes from one platform to the other.
+
+mulle-socket exists for the same reason mulle-spawn does — the platform
+difference is real and it is not the caller's job to know it — and for one more:
+what a socket *is* differs. On POSIX a socket is a descriptor and `read()` works
+on it. On Windows it is a `SOCKET`, which is a handle, and `_read()` on one
+fails. That is why the handle here is a `mulle_socket_t` and not an `int`, and
+why the difference is settled once, in this library, instead of at every call
+site.

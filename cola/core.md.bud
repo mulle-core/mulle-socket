@@ -1,0 +1,10 @@
+| | POSIX | Windows |
+|---|---|---|
+| the handle | `int`, a descriptor | `SOCKET`, a handle |
+| startup | nothing | `WSAStartup`, once, idempotent |
+| I/O | `read`/`write`, plus `send` for the flag | `recv`/`send` only |
+| errors | `errno` | `WSAGetLastError`, translated to `errno` names |
+| `SIGPIPE` | `MSG_NOSIGNAL` (Linux) or `SO_NOSIGPIPE` (macOS/BSD) | the concept does not exist |
+| `SOCKET` on a closed peer | `EPIPE` | `WSAESHUTDOWN`, reported as `EPIPE` |
+| `SO_REUSEADDR` | set: lets a server rebind a port in `TIME_WAIT` | deliberately not set: there it means "let anyone bind this port" |
+| unix domain sockets | offered | not offered (see below) |

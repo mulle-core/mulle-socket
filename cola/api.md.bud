@@ -1,0 +1,142 @@
+## API Guide
+
+### A server and a client
+
+```c
+#include <mulle-socket/mulle-socket.h>
+
+unsigned int     port;
+mulle_socket_t   listener;
+mulle_socket_t   connection;
+
+/* 0 for the port asks the platform for one, and reports back which */
+listener = mulle_socket_listen( "127.0.0.1", 0, &port);
+if( listener == MULLE_SOCKET_INVALID)
+   return( -1);
+
+/* the next client, with TCP_NODELAY already set on it */
+connection = mulle_socket_accept( listener);
+if( connection == MULLE_SOCKET_INVALID)
+   return( -1);
+
+if( mulle_socket_write_all( connection, "+PONG\r\n", 7))
+   return( -1);
+
+mulle_socket_close( connection);
+mulle_socket_close( listener);
+```
+
+```c
+mulle_socket_t   client;
+
+client = mulle_socket_connect( "127.0.0.1", port);
+if( client == MULLE_SOCKET_INVALID)
+{
+   fprintf( stderr, "cannot connect: %s\n", strerror( mulle_socket_error()));
+   return( -1);
+}
+```
+
+Everything is blocking. `mulle_socket_find_free_port()` is the racy helper for
+"a port for a server I am about to start": it binds port 0, reads back what it
+got, and closes again, so the port is free when it returns rather than reserved.
+
+### The three promises
+
+1. **`SIGPIPE` never reaches your process.** `MSG_NOSIGNAL` on Linux,
+   `SO_NOSIGPIPE` on the BSDs and macOS, and neither on Windows because there is
+   nothing to suppress. A write to a peer that has gone gives `-1` and `EPIPE`
+   on all three. A platform with neither flag fails to *build* rather than
+   killing your process at the worst moment.
+
+2. **`EINTR` is retried inside.** Every call that can be interrupted retries
+   it, so callers never write that loop. Nothing else is retried: `accept` on a
+   closed listener, a refused `connect` and a reset connection are all reported,
+   with `mulle_socket_error()` for the reason.
+
+3. **`mulle_socket_error()` is an `errno` value on every platform.** Winsock's
+   codes that have a POSIX twin are translated (`WSAEWOULDBLOCK` to `EAGAIN`,
+   `WSAECONNREFUSED` to `ECONNREFUSED`, `WSAESHUTDOWN` to `EPIPE`, and so on);
+   the rest arrive as `EIO`, which is the honest answer for "it failed in a way
+   this API has no name for". `strerror()` on the result is meaningful.
+
+### Timeouts, and where they stop
+
+`mulle_socket_set_read_timeout()` and `mulle_socket_set_write_timeout()` bound a
+blocking read or write, in seconds, and an expiry arrives as `ETIMEDOUT`
+on every platform — POSIX says `EAGAIN` for one and Winsock says `WSAETIMEDOUT`
+for the other, and a caller should not have to know which. `0` means wait
+forever, which is also the default.
+
+Two boundaries are the caller's, and both are measured rather than assumed:
+
+- **`accept` is bounded on Linux only.** Linux's kernel applies the receive
+timeout to `accept`; BSD, macOS and Winsock do not, so an accept on an idle
+listener there waits however small the timeout is. A caller who needs one wants
+`select()`. The library does not wrap that, because wrapping it would change
+what `accept` means on two platforms without the socket option that is supposed
+to mean it.
+- **`connect` is bounded nowhere.** No socket option expresses it; bounding a
+connect means a non-blocking connect plus a readiness wait, and a half-open
+socket to clean up when it expires.
+
+`probe/timeout-probe.c` is what established all of this by hanging on exactly
+the platforms that ignore the option, and it is kept — with its answers written
+down in `probe/README.md` — for the next person who wonders whether the header
+is right. There is still no
+non-blocking mode: a call without a timeout can block indefinitely, and a caller
+who needs a deadline for one of the two unbounded calls uses the platform's own
+readiness wait on a `mulle_socket_t` — which is exactly what that call is for.
+- **No peer address from `accept`.** Nothing in the tree needed one, and
+  inventing a `getpeername` wrapper means deciding what to report when the peer
+  has already vanished.
+- **No unix domain sockets on Windows.** Windows has had `AF_UNIX` since 10
+  1803, but whether `<afunix.h>` and `struct sockaddr_un` are there depends on
+  the SDK in a way this library cannot paper over, and nothing here needed one.
+  They are offered on POSIX, where `MULLE_SOCKET_HAVE_UNIX` is defined.
+- **No `SO_REUSEADDR` on Windows**, on purpose and not as an omission — see the
+  table above and `mulle_socket_set_reuseaddr()`, which is a no-op there that
+  returns success so the call needs no platform guard.
+
+### Where the callers live
+
+`mulle-core-demo`'s miniredis is the first customer: its listener and accept
+loop, its client `connect`, its port picking and its unix socket connect all go
+through this library, which is what let its TCP transport and its four TCP
+fixtures run on Windows. The `TCP_NODELAY` measurement that justifies setting it
+on `accept` and `connect` — 16 pipelined 4 KB requests answering their last reply
+in 34 ms instead of 0.15 ms — is recorded in `mulle-socket.h`, next to the calls
+that set it.
+
+### Verification
+
+`test/10-api/socket.c` exercises this whole header in one process — a listener, a
+client that connects to it, a 4 KB binary round trip, `shutdown` and the `EPIPE`
+that follows, a refused connection, a rebind of the same port, `close` on
+`MULLE_SOCKET_INVALID`, and the three timeouts — and `mulle-sde test run` is what
+runs it. Its record is per platform: `socket.stdout` for Linux, and
+`socket.stdout.darwin` and `socket.stdout.windows` where the differences below
+are not cosmetic. Anything that varies run to run (ports, elapsed times) is
+behind `--verbose` instead, so the records hold:
+
+| | Linux | macOS | Windows (wine) |
+|---|---|---|---|
+| `test/10-api/socket.c` | **44 ok** | **41 ok** | **41 ok** |
+| refused connection reads as | `ECONNREFUSED` (111) | `ECONNREFUSED` (61) | `ECONNREFUSED` (107, translated) |
+| write after shutdown reads as | `EPIPE` (32) | `EPIPE` (32) | `EPIPE` (32, translated from `WSAESHUTDOWN`) |
+| rebind after a connection, with no `SO_REUSEADDR` | works (it was set) | works (it was set) | works (it was not needed) |
+| a 0.25 s read timeout | `ETIMEDOUT` @0.25s | `ETIMEDOUT` @0.25s | `ETIMEDOUT` @0.25s |
+| a 0.25 s write timeout | `ETIMEDOUT` @0.77s | `ETIMEDOUT` @0.50s | `ETIMEDOUT` @0.25s |
+| a 0.3 s accept timeout | `ETIMEDOUT` @0.30s | *not bounded by the option* | *not bounded by the option* |
+
+The platform with the higher check count is the one where `accept` is bounded;
+the other two say so in a line instead of asserting it. The write timeout differs
+in wall-clock the other way round, and for a reason worth keeping: an expiring
+POSIX send returns the bytes it did move, so `write_all` earns several timeouts'
+worth of progress before it gives up, while Windows fails the send outright. On
+macOS one megabyte made it through, on Linux two, on Windows none — the check
+asserts the error and the bound, never the byte count.
+
+The rebind check is the one that says the `SO_REUSEADDR` asymmetry is right: it
+passes on all three, with the option set where it means "rebind" and not set
+where it means "hijack".

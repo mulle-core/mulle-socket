@@ -1,0 +1,25 @@
+{
+   project =
+   {
+      description="🧦 TCP that reads the same on both sides of the fence";
+      domain="github";
+      language="c";
+      dialect="c";
+      name="mulle-socket";
+      user="mulle-core";
+      repo="mulle-socket";
+      homepage="https://github.com/mulle-core/mulle-socket";
+      license="BSD-3-Clause";
+   };
+   dependencies =
+   (
+      {
+         description="🔀 Cross-platform C compiler glue (and some cpp conveniences)";
+         domain="github";
+         name="mulle-c11";
+         repo="mulle-c11";
+         url="https://github.com/mulle-c/mulle-c11";
+         user="mulle-c";
+      }
+   );
+}
